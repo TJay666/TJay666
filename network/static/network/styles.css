@@ -1,0 +1,45 @@
+body {
+    padding-top: 56px; /* To avoid overlap with the navbar */
+}
+
+.body-content {
+    max-width: 800px; /* Adjust this value to change the width of the main content */
+    margin: 0 auto; /* Center align the content */
+    padding: 20px; /* Add padding around the content */
+}
+
+.navbar {
+    margin-bottom: 20px; /* Space between the navbar and the content */
+}
+
+.post {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.username a {
+    font-weight: bold;
+}
+
+.content {
+    margin-top: 10px;
+}
+
+.date {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.likes {
+    margin-top: 10px;
+}
+
+.new-post {
+    margin-bottom: 20px;
+}
+
+.pagination {
+    margin-top: 20px;
+}

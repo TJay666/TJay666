@@ -1,0 +1,182 @@
+{% extends "network/layout.html" %}
+
+{% block body %}
+    <h1>{{ username }}</h1>
+
+    <div class="container">
+        <div>
+            <p>Followers: <span id="followers-count">{{ followers.count }}</span></p>
+            <p>Followings: {{ followings.count }}</p>
+            {% if user.is_authenticated %}
+                {% if user != user_profile %}
+                    <button id="follow-btn" class="btn {% if is_following %}btn-warning{% else %}btn-danger{% endif %}">
+                        {% if is_following %}Unfollow{% else %}Follow{% endif %}
+                    </button>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', () => {
+                            const followBtn = document.getElementById('follow-btn');
+                            const followersCountSpan = document.getElementById('followers-count');
+                            followBtn.addEventListener('click', () => {
+                                const isFollowing = followBtn.classList.contains('btn-warning');
+                                const url = isFollowing ? '{% url "unfollow" %}' : '{% url "follow" %}';
+                                const userfollow = "{{ user_profile.username }}";
+                                fetch(url, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': getCookie('csrftoken')
+                                    },
+                                    body: JSON.stringify({ userfollow })
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (isFollowing) {
+                                        followBtn.classList.remove('btn-warning');
+                                        followBtn.classList.add('btn-danger');
+                                        followBtn.innerText = 'Follow';
+                                        followersCountSpan.innerText = parseInt(followersCountSpan.innerText) - 1;
+                                    } else {
+                                        followBtn.classList.remove('btn-danger');
+                                        followBtn.classList.add('btn-warning');
+                                        followBtn.innerText = 'Unfollow';
+                                        followersCountSpan.innerText = parseInt(followersCountSpan.innerText) + 1;
+                                    }
+                                })
+                                .catch(error => console.error('Error:', error));
+                            });
+                        });
+
+                        function getCookie(name) {
+                            let cookieValue = null;
+                            if (document.cookie && document.cookie !== '') {
+                                const cookies = document.cookie.split(';');
+                                for (let i = 0; i < cookies.length; i++) {
+                                    const cookie = cookies[i].trim();
+                                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                                        break;
+                                    }
+                                }
+                            }
+                            return cookieValue;
+                        }
+                    </script>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    <hr>
+
+    {% if user.is_authenticated %}
+    <div class="all_posts">
+        {% for post in posts_of_page %}
+            <div class="post">
+                <h4 class="username">
+                    Posted by: <a href="{% url 'profile' user_id=post.user.id %}">{{ post.user }}</a>
+                    {% if user.is_authenticated %}
+                        {% if user == post.user %}
+                            <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#modal_edit_post_{{ post.id }}">
+                                Edit
+                            </button>
+
+                            <div class="modal fade" id="modal_edit_post_{{ post.id }}" tabindex="-1" aria-labelledby="modal_edit_post_{{ post.id }}" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h1 class="modal-title fs-5" id="exampleModalLabel">Edit content</h1>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <textarea rows="10" id="textarea_{{ post.id }}" name="content" class="form-control">{{ post.content }}</textarea>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                            <button type="button" class="btn btn-primary edit-button" data-id="{{ post.id }}">Save changes</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>                           
+                        {% endif %}
+                    {% endif %}
+                </h4>
+                <p class="content" id="content-{{ post.id }}">{{ post.content }}</p>
+                <p class="date">{{ post.timestamp }}</p>
+                <p class="likes">Likes: <span id="like-count-{{ post.id }}"><strong>{{ post.likes.count }}</strong></span></p>
+            </div>
+            <hr>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <nav aria-label="Page navigation example">
+        <ul class="pagination d-flex justify-content-center">
+            {% if posts_of_page.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1">First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ posts_of_page.previous_page_number }}">Previous</a>
+                </li>
+            {% endif %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ posts_of_page.number }}">{{ posts_of_page.number }}</a>
+            </li>
+            {% if posts_of_page.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ posts_of_page.next_page_number }}">Next</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ posts_of_page.paginator.num_pages }}">Last</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.edit-button').forEach(button => {
+                button.onclick = function() {
+                    submission(this.dataset.id);
+                };
+            });
+        });
+
+        function submission(id) {
+            let content = document.getElementById(`textarea_${id}`).value;
+            fetch(`/edit/${id}`, {
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    content: content
+                })
+            })
+            .then(response => response.json())
+            .then(result => {
+                console.log(result);
+                document.getElementById(`content-${id}`).innerText = result.data;
+                document.querySelector(`#modal_edit_post_${id} .btn-close`).click();
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+
+    <script id="liked_posts_data" type="application/json">{{ liked_posts|safe }}</script>
+{% endblock %}

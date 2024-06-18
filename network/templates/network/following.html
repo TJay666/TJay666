@@ -1,0 +1,140 @@
+{% extends "network/layout.html" %}
+
+{% block body %}
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const likedPostsData = JSON.parse(document.getElementById('liked_posts_data').textContent);
+            console.log("Initial likedPostsData:", likedPostsData);
+
+            document.querySelectorAll('.like-button').forEach(button => {
+                button.onclick = function() {
+                    like(this.dataset.id, likedPostsData);
+                };
+            });
+        });
+
+        function like(id, likedPostsData) {
+            const btn = document.getElementById(`like-button-${id}`);
+            const likeCountElement = document.getElementById(`like-count-${id}`);
+
+            let liked = likedPostsData.indexOf(parseInt(id)) >= 0;
+
+            if (liked) {
+                fetch(`/remove_like/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                })
+                .then(response => response.json())
+                .then(result => {
+                    console.log(result);
+                    if (result.message === "Unliked!") {
+                        btn.classList.remove('btn-warning');
+                        btn.classList.add('btn-danger');
+                        btn.innerHTML = 'Like';
+
+                        const index = likedPostsData.indexOf(parseInt(id));
+                        if (index > -1) {
+                            likedPostsData.splice(index, 1);
+                        }
+                        likeCountElement.textContent = parseInt(likeCountElement.textContent) - 1;
+                        console.log("Updated likedPostsData after unlike:", likedPostsData);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            } else {
+                fetch(`/add_like/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                })
+                .then(response => response.json())
+                .then(result => {
+                    console.log(result);
+                    if (result.message === "Liked!") {
+                        btn.classList.remove('btn-danger');
+                        btn.classList.add('btn-warning');
+                        btn.innerHTML = 'Unlike';
+
+                        likedPostsData.push(parseInt(id));
+                        likeCountElement.textContent = parseInt(likeCountElement.textContent) + 1;
+                        console.log("Updated likedPostsData after like:", likedPostsData);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        }
+    </script>
+
+    <h1>Following</h1>
+
+    <hr>
+
+    <div class="all_posts">
+        {% for post in posts_of_page %}
+            <div class="post">
+                <h4 class="username">
+                    Posted by: <a href="{% url 'profile' user_id=post.user.id %}">{{ post.user }}</a>
+                    {% if post.id in liked_posts %}
+                        <button class="btn btn-warning like-button" id="like-button-{{ post.id }}" data-id="{{ post.id }}">Unlike</button>
+                    {% else %}
+                        <button class="btn btn-danger like-button" id="like-button-{{ post.id }}" data-id="{{ post.id }}">Like</button>
+                    {% endif %}
+                </h4>
+                <p class="content">{{ post.content }}</p>
+                <p class="date">{{ post.timestamp }}</p>
+                <p class="likes">Likes: <span id="like-count-{{ post.id }}"><strong>{{ post.likes.count }}</strong></span></p>
+            </div>
+            <hr>
+        {% endfor %}
+    </div>
+
+    <nav aria-label="Page navigation example">
+        <ul class="pagination d-flex justify-content-center">
+            {% if posts_of_page.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1">First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ posts_of_page.previous_page_number }}">Previous</a>
+                </li>
+            {% endif %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ posts_of_page.number }}">{{ posts_of_page.number }}</a>
+            </li>
+            {% if posts_of_page.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ posts_of_page.next_page_number }}">Next</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ posts_of_page.paginator.num_pages }}">Last</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    <!-- 將 liked_posts 轉換為 JSON 並嵌入到 HTML -->
+    <script type="application/json" id="liked_posts_data">
+        {{ liked_posts|safe }}
+    </script>
+
+{% endblock %}
